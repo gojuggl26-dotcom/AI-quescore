@@ -53,7 +53,7 @@ I, the developer, created this project with the help of AI (Claude and Gemini).
 ## Where did I use?
 
 ・Identifying the causes of coding errors and proposing solutions.
-・Generating all branching patterns, such as TypeScript `if` statements.
-・Basic coding of JSON files.
-・File structure and organisation within the folder.
-・General coding structure of the .js file
+　・Generating all branching patterns, such as TypeScript `if` statements.
+　・Basic coding of JSON files.
+　・File structure and organisation within the folder.
+　・General coding structure of the .js file
