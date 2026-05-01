@@ -1,1 +1,43 @@
 # AI-quescore
+
+# Overview
+  SurveyChain is a next-generation decentralized survey platform that integrates AI-powered response quality rating with automated reward distribution.
+  I am building an ecosystem where high-quality contributors are rewarded.
+## Previous issues
+　With traditional surveys, it was impossible to avoid the inclusion of “low-quality responses” submitted solely for the purpose of earning rewards.
+
+ In the compensation payment process, issues such as managerial arbitrariness and systemic flaws had been a problem.
+ 
+# TechStack
+## 1. Blockchain & Identity Layer Ethereum (Sepolia Testnet): 
+ The primary execution environment and deployment destination for smart contracts.  ENS (Ethereum Name Service): Used as the survey identifier (brand.eth). Stores deadlines and question CIDs in Text Records.  Solidity (v0.8.x): Implementation of reward distribution logic and attestation verification contracts.  
+## 2. Processing & AI Layer (Powered by 0G)0G Storage:
+Decentralized storage of response data. Applies client-side encryption using AES-256-GCM.  0G Compute (Sealed Inference): AI inference within a TEE (Trusted Execution Environment). Scores the quality of responses on a scale of 0–100 using an LLM (such as qwen3.6-plus).  Remote Attestation: Digital signature technology that verifies the authenticity of inferences performed within the TEE.  
+## 3. Execution & Automation LayerKeeperHub:
+An autonomous agent that automatically executes the reward distribution function based on the deadline (ENS deadline).  ERC-2612 (Permit): Signature-based USDC approval. Eliminates the need for Approve transactions and enables one-click reward pool creation.  
+## 4. Frontend & SDKs Next.js (v14.x App Router): 
+Application framework. wagmi & viem: Ethereum wallet integration and on-chain data resolution (ENS/Contract). 0G JS SDK: Data upload to 0G Storage and integration with the Compute agent. TailwindCSS & shadcn/ui: UI component framework with high accessibility.  
+# System Architecture
+## 1. Data Flow & Lifecycle
+### Phase 1: Survey Creation & Indexing
+・A company (Brand) registers survey metadata (title, deadline, and question CID) in the ENS domain’s Text Record.  At the same time, it deposits USDC into the reward pool contract. This process provides a seamless experience that does not require approval, thanks to the ERC-2612 permit.
+### Phase 2: Secure Submission
+・When a user submits a response from the front end, client-side encryption is performed in the browser.  The encrypted data is uploaded to 0G Storage, and its reference ID (CID) is recorded.  
+### Phase 3: AI-Driven Validation (Sealed Inference)
+・An agent running on 0G Compute decrypts the response data within a TEE (Trusted Execution Environment) and evaluates its quality using an LLM. The AI calculates a quality score (0–100), generates a digital signature (Attestation) to verify its authenticity, and sends it to the blockchain. 
+### Phase 4: Autonomous Execution
+・When the deadline specified in ENS is reached, KeeperHub automatically triggers the `distributeRewards` function. The smart contract automatically allocates and distributes USDC to each user’s wallet based on their verified attestations and scores.
+## 2. Infrastructure Components
+| Component | Role | Technology Used |
+| :--- | :--- | :--- |
+| Identity Hub | Survey discovery and deadline management | ENS (Ethereum Name Service) |
+| Privacy Layer | Persistence and confidentiality of response data | 0G Storage & AES-256-GCM |
+| Trustless Judge | Fair, content-based quality rating | 0G Compute (Sealed Inference) |
+| Automation Engine | Autonomous execution of distribution logic | KeeperHub |
+| Settlement Layer | Management of reward pools and distribution of funds | Solidity Smart Contracts (USDC) |
+
+# Repository Structure
+
+# Security & Features
+
+
