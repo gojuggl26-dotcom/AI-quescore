@@ -52,7 +52,8 @@ Reward distribution is executed autonomously by KeeperHub, rather than by a cent
 I, the developer, created this project with the help of AI (Claude and Gemini).
 ## Where did I use?
 
-・Identifying the causes of coding errors and proposing solutions.
+・Correction of logical errors in the project overview diagram I have created
+<br>・Identifying the causes of coding errors and proposing solutions.
 <br>・Generating all branching patterns, such as TypeScript `if` statements.
 <br>・Basic coding of JSON files.
 <br>・File structure and organisation within the folder.
