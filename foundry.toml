@@ -1,0 +1,7 @@
+[profile.default]
+src = "surveychain/contracts"
+out = "surveychain/out"
+libs = ["lib"]
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+]
