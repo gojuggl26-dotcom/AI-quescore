@@ -48,4 +48,9 @@ User responses are encrypted using AES-256-GCM before transmission and stored in
 ### Decentralized Automation: 
 Reward distribution is executed autonomously by KeeperHub, rather than by a centralized server. This eliminates the risk of arbitrary manipulation by administrators or payment delays.  
 
-
+# AI using
+I, the developer, created this project with the help of AI (Claude and Gemini).
+## Where did I use?
+・Identifying the causes of coding errors and proposing solutions.
+・Generating all branching patterns, such as TypeScript `if` statements.
+・
