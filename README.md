@@ -1,7 +1,7 @@
-# AI-quescore
+# Quescore
 
 # Overview
-  AI-Quescore is a next-generation decentralized survey platform that integrates AI-powered response quality rating with automated reward distribution.
+  Quescore is a next-generation decentralized survey platform that integrates AI-powered response quality rating with automated reward distribution.
   I am building an ecosystem where high-quality contributors are rewarded.
 ## Previous issues
 　With traditional surveys, it was impossible to avoid the inclusion of “low-quality responses” submitted solely for the purpose of earning rewards.
