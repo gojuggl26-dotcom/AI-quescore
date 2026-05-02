@@ -1,4 +1,4 @@
-# Quescore
+# Project: Quescore
 
 # Overview
   Quescore is a next-generation decentralized survey platform that integrates AI-powered response quality rating with automated reward distribution.
