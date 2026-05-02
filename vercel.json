@@ -1,0 +1,6 @@
+{
+  "buildCommand": "cd surveychain/frontend && npm install && npm run build",
+  "outputDirectory": "surveychain/frontend/.next",
+  "installCommand": "cd surveychain/frontend && npm install",
+  "framework": "nextjs"
+}

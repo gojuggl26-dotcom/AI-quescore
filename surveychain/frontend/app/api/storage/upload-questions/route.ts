@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AgentStorage } from '../../../../agent/memory/storage';
+import { AgentStorage } from '@agent/memory/storage';
 import type { QuestionItem } from '@/lib/storage';
 
 export async function POST(req: NextRequest) {

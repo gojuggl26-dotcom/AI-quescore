@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { AnswerData, AgentConfig } from '../../../agent/types';
+import type { AnswerData, AgentConfig } from '@agent/types';
 
 function getAgentConfig(): AgentConfig {
   const required = [
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { QualityScoringAgent } = await import('../../../agent/QualityScoringAgent');
+    const { QualityScoringAgent } = await import('@agent/QualityScoringAgent');
     const agent = new QualityScoringAgent(config);
     const result = await agent.execute({ answerData });
     return NextResponse.json(result);

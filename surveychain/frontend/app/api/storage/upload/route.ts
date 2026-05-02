@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { AnswerData } from '../../../../agent/types';
-import { AgentStorage } from '../../../../agent/memory/storage';
+import type { AnswerData } from '@agent/types';
+import { AgentStorage } from '@agent/memory/storage';
 
 export async function POST(req: NextRequest) {
   let body: { answerData: AnswerData; respondent: string };
