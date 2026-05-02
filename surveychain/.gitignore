@@ -1,0 +1,18 @@
+# Environment
+.env
+.env.local
+.env*.local
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+artifacts/
+cache/
+typechain-types/
+frontend/.next/
+frontend/out/
+
+# Misc
+*.log

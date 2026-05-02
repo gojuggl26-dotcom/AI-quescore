@@ -1,33 +1,3 @@
-/**
- * Keeper registration agent — OpenClaw-compatible entry point.
- *
- * Orchestration flow
- * ──────────────────
- * 1. Validate input (ensName, contractAddress, chainId).
- * 2. Normalize ENS name (ENSIP-15) and compute bytes32 namehash (ensNode).
- * 3. Resolve `survey.deadline` Text Record from ENS via ethers provider.
- * 4. Encode distributeRewards(ensNode) calldata via ABI encoder.
- * 5. Connect to KeeperHub MCP server (x402 pre-auth).
- * 6. Register keeper task with:
- *      trigger.type   = timestamp (ENS survey.deadline)
- *      retries        = 10
- *      gasStrategy    = dynamic
- *      routing        = private (Flashbots/Titan MEV protection)
- *      paymentMethod  = x402
- * 7. Return confirmed registration including taskId and scheduledFor.
- *
- * Fallback design (SEC-07)
- * ─────────────────────────
- * The SurveyReward.sol `onlyKeeperOrFallback` modifier provides a secondary
- * execution path: if KeeperHub fails to execute distributeRewards() and
- * `deadline + FALLBACK_DELAY (7 days)` passes, the contract owner can call
- * distributeRewards() directly.  This agent's role is only the registration
- * step; the fallback is enforced on-chain.
- *
- * The agent also registers the task triggerTimestamp slightly before the
- * on-chain deadline (by `PRE_TRIGGER_BUFFER_SECONDS`) so KeeperHub can
- * prepare the transaction and have it confirmed at or shortly after deadline.
- */
 import {
   JsonRpcProvider,
   Wallet,
@@ -48,29 +18,10 @@ import type {
   KeeperTaskParams,
 }                                         from './KeeperTypes';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-/**
- * Seconds before the on-chain deadline at which KeeperHub should target
- * inclusion of the distributeRewards() transaction.
- *
- * The contract enforces `block.timestamp >= deadline`, so the tx must NOT
- * confirm before deadline.  KeeperHub uses dynamic gas to aim for inclusion
- * at [deadline, deadline + 60s].  We trigger slightly early so KeeperHub has
- * time to build and broadcast the tx.
- */
 const PRE_TRIGGER_BUFFER_SECONDS = 30;
 
-/**
- * Minimum seconds in the future a survey.deadline must be for a keeper task
- * to be useful.  Deadlines within this window are already past or too close.
- */
-const MIN_DEADLINE_MARGIN_SECONDS = 300; // 5 minutes
+const MIN_DEADLINE_MARGIN_SECONDS = 300;
 
-/**
- * Fixed parameters that mirror the SurveyReward.sol + spec requirements.
- * These are NOT configurable per-call; they are part of the system contract.
- */
 const KEEPER_FIXED_PARAMS = {
   retries:       10 as const,
   gasStrategy:   'dynamic' as const,
@@ -78,20 +29,10 @@ const KEEPER_FIXED_PARAMS = {
   paymentMethod: 'x402' as const,
 } as const;
 
-/**
- * Minimal ABI fragment for distributeRewards — used only for calldata encoding.
- * The full contract ABI is not needed here.
- */
 const DISTRIBUTE_REWARDS_FRAGMENT =
   'function distributeRewards(bytes32 ensNode)';
 
-/**
- * ENS Text Record key for the survey deadline (mirrors ENS_TEXT_KEYS.deadline
- * in frontend/ens/ensUtils.ts — kept in sync manually).
- */
 const ENS_DEADLINE_KEY = 'survey.deadline';
-
-// ─── Errors ───────────────────────────────────────────────────────────────────
 
 export class KeeperInputValidationError extends Error {
   constructor(message: string) {
@@ -114,7 +55,6 @@ export class DeadlineError extends Error {
   }
 }
 
-// ─── KeeperRegistrationAgent ──────────────────────────────────────────────────
 
 export class KeeperRegistrationAgent
   implements IOpenClawAgent<KeeperRegistrationInput, KeeperRegistrationOutput>
@@ -135,14 +75,11 @@ export class KeeperRegistrationAgent
     this.signer   = new Wallet(config.privateKey, this.provider);
   }
 
-  // ─── IOpenClawAgent ──────────────────────────────────────────────────────────
-
   async execute(
     input: KeeperRegistrationInput,
   ): Promise<KeeperRegistrationOutput> {
     this.validateInput(input);
 
-    // ── Step 1: Normalize ENS name and compute namehash ──────────────────────
     let normalizedName: string;
     let ensNode: HexString;
     try {
@@ -154,25 +91,19 @@ export class KeeperRegistrationAgent
       );
     }
 
-    // ── Step 2: Resolve survey.deadline from ENS ─────────────────────────────
     const triggerTimestamp = await this.resolveDeadline(normalizedName);
 
-    // ── Step 3: Encode distributeRewards calldata ────────────────────────────
     const calldata = this.encodeDistributeRewards(ensNode);
 
-    // ── Step 4: Build keeper task params ────────────────────────────────────
     const taskParams: KeeperTaskParams = {
       ensNode,
       contractAddress: input.contractAddress,
       calldata,
-      // KeeperHub targets inclusion at triggerTimestamp; subtract buffer so
-      // the tx is broadcast before deadline and confirmed at/after it.
       triggerTimestamp: triggerTimestamp - PRE_TRIGGER_BUFFER_SECONDS,
       chainId:          input.chainId,
       ...KEEPER_FIXED_PARAMS,
     };
 
-    // ── Step 5: Connect to KeeperHub and register task ───────────────────────
     const mcpClient = new MCPKeeperClient(
       this.config.mcpEndpoint,
       this.signer,
@@ -185,7 +116,6 @@ export class KeeperRegistrationAgent
       await mcpClient.connect();
       registration = await mcpClient.registerTask(taskParams);
     } finally {
-      // Always close the connection, even if registration throws.
       await mcpClient.close().catch((err: unknown) => {
         console.warn(
           `[KeeperRegistrationAgent] MCP close error (non-fatal): ${String(err)}`,
@@ -193,7 +123,6 @@ export class KeeperRegistrationAgent
       });
     }
 
-    // ── Step 6: Verify the registration matches what we requested ───────────
     if (registration.scheduledFor !== taskParams.triggerTimestamp) {
       console.warn(
         `[KeeperRegistrationAgent] KeeperHub scheduled task at ` +
@@ -225,19 +154,6 @@ export class KeeperRegistrationAgent
     ];
   }
 
-  // ─── ENS resolution ───────────────────────────────────────────────────────────
-
-  /**
-   * Resolves the `survey.deadline` Text Record from ENS for the given name.
-   * Uses ethers v6 provider's built-in ENS support.
-   *
-   * The deadline value must be a valid future Unix timestamp (seconds).
-   * Timestamps within MIN_DEADLINE_MARGIN_SECONDS of now are rejected to
-   * prevent keeper tasks that would fire before the tx could confirm.
-   *
-   * @param normalizedName Already ENSIP-15 normalised ENS name.
-   * @returns Deadline as a Unix timestamp in seconds.
-   */
   private async resolveDeadline(normalizedName: string): Promise<number> {
     let resolver: EnsResolver | null;
     try {
@@ -297,19 +213,10 @@ export class KeeperRegistrationAgent
     return deadlineTs;
   }
 
-  // ─── Calldata encoding ────────────────────────────────────────────────────────
-
-  /**
-   * ABI-encodes the distributeRewards(bytes32) call using ethers Interface.
-   * The resulting hex calldata is sent to KeeperHub, which submits it as
-   * the transaction data when calling the SurveyReward contract.
-   */
   private encodeDistributeRewards(ensNode: HexString): HexString {
     const iface = new Interface([DISTRIBUTE_REWARDS_FRAGMENT]);
     return iface.encodeFunctionData('distributeRewards', [ensNode]) as HexString;
   }
-
-  // ─── Validation ───────────────────────────────────────────────────────────────
 
   private validateConfig(config: KeeperAgentConfig): void {
     const required: Array<keyof KeeperAgentConfig> = [

@@ -1,15 +1,19 @@
 import { Indexer, ZgFile } from '@0glabs/0g-ts-sdk';
-import { ethers } from 'ethers';
-
+import { Wallet, JsonRpcProvider } from 'ethers';
 import {
   createCipheriv,
   createDecipheriv,
   randomBytes,
   scryptSync,
+  type CipherGCM,
+  type DecipherGCM,
 } from 'crypto';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { readFileSync, unlinkSync, existsSync } from 'fs';
 import type { HexString, HistoricalPattern } from '../types';
 
-const CIPHER_ALGO = `aes-256-gcm` as const;
+const CIPHER_ALGO = 'aes-256-gcm' as const;
 const KEY_BYTES = 32;
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
@@ -56,8 +60,8 @@ export class StorageDecryptError extends Error {
 
 export class AgentStorage {
     private readonly indexer: Indexer;
-  private readonly flowAddress: string;
-  private readonly signer: ethers.Wallet;
+  private readonly rpcUrl: string;
+  private readonly signer: Wallet;
   private readonly encKey: Buffer;
 
   private index: PatternIndex = { version: 1, entries: {}, updatedAt: 0 };
@@ -77,9 +81,9 @@ export class AgentStorage {
     if (!rpcUrl) throw new Error('AgentStorage: rpcUrl is required');
 
     this.indexer = new Indexer(storageUrl);
-    this.flowAddress = flowAddress;
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
-    this.signer = new ethers.Wallet(privateKey, provider);
+    this.rpcUrl = rpcUrl;
+    const provider = new JsonRpcProvider(rpcUrl);
+    this.signer = new Wallet(privateKey, provider);
 
     const keyMaterial = privateKey.startsWith('0x')
       ? privateKey.slice(2)
@@ -90,9 +94,9 @@ export class AgentStorage {
       p: SCRYPT_P,
     });
 
-    if (initialIndexCid) {
-      this.indexCid = initialIndexCid;
-      this.initPromise = this.loadIndex(initialIndexCid);
+    if (initialIndexCID) {
+      this.indexCid = initialIndexCID;
+      this.initPromise = this.loadIndex(initialIndexCID);
     }
   }
 
@@ -133,8 +137,6 @@ export class AgentStorage {
     const results = await Promise.allSettled(cids.map((cid) => this.loadPattern(cid)));
 
     const patterns: HistoricalPattern[] = [];
-    // Use for-of so TypeScript correctly narrows each element from
-    // PromiseSettledResult<T> to PromiseFulfilledResult<T> | PromiseRejectedResult.
     for (const [idx, result] of results.entries()) {
       if (result.status === 'fulfilled') {
         patterns.push(result.value);
@@ -179,10 +181,6 @@ export class AgentStorage {
     return parsed as HistoricalPattern;
   }
 
-  /**
-   * Encrypts arbitrary binary data and uploads it to 0G Storage.
-   * Returns the Merkle root hash (CID) anchored on-chain.
-   */
   async uploadRaw(data: Buffer, filename: string): Promise<string> {
     if (!data || data.length === 0) {
       throw new StorageUploadError(`uploadRaw: buffer is empty (file=${filename})`);
@@ -193,14 +191,11 @@ export class AgentStorage {
     return this.uploadEncrypted(data, filename);
   }
 
-  // ─── AES-256-GCM helpers ──────────────────────────────────────────────────────
-
   private encrypt(plaintext: Buffer): Buffer {
     const iv = randomBytes(IV_BYTES);
-    const cipher = createCipheriv(CIPHER_ALGO, this.encKey, iv);
+    const cipher = createCipheriv(CIPHER_ALGO, this.encKey, iv) as CipherGCM;
     const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
     const tag = cipher.getAuthTag();
-    // Wire format: IV (12 B) | AUTH_TAG (16 B) | CIPHERTEXT
     return Buffer.concat([iv, tag, ciphertext]);
   }
 
@@ -216,7 +211,7 @@ export class AgentStorage {
     const ciphertext = data.subarray(IV_BYTES + TAG_BYTES);
 
     try {
-      const decipher = createDecipheriv(CIPHER_ALGO, this.encKey, iv);
+      const decipher = createDecipheriv(CIPHER_ALGO, this.encKey, iv) as DecipherGCM;
       decipher.setAuthTag(tag);
       return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     } catch (err) {
@@ -227,8 +222,6 @@ export class AgentStorage {
       );
     }
   }
-
-  // ─── 0G Storage helpers ───────────────────────────────────────────────────────
 
   private async uploadEncrypted(plaintext: Buffer, filename: string): Promise<string> {
     const cipherBuf = this.encrypt(plaintext);
@@ -267,7 +260,7 @@ export class AgentStorage {
     try {
       const [tx, uploadErr] = await this.indexer.upload(
         zgFile,
-        this.flowAddress,
+        this.rpcUrl,
         this.signer,
       );
       if (uploadErr !== null && uploadErr !== undefined) {
@@ -292,24 +285,41 @@ export class AgentStorage {
     return rootHash;
   }
 
-   private async downloadDecrypted(cid: string): Promise<Buffer> {
-    let raw: Uint8Array;
+  private async downloadDecrypted(cid: string): Promise<Buffer> {
+    const tmpPath = join(
+      tmpdir(),
+      `0g-dl-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    );
+
     try {
-      raw = await this.indexer.download(cid, this.flowAddress);
-    } catch (err) {
-      throw new StorageDownloadError(
-        `Failed to download cid=${cid}: ${String(err)}`,
-        err,
-      );
-    }
+      const dlErr = await this.indexer.download(cid, tmpPath, false);
+      if (dlErr !== null) {
+        throw new StorageDownloadError(
+          `Failed to download cid=${cid}: ${String(dlErr)}`,
+          dlErr,
+        );
+      }
 
-    if (!raw || raw.length === 0) {
-      throw new StorageDownloadError(
-        `Downloaded empty payload for cid=${cid}`,
-      );
-    }
+      let raw: Buffer;
+      try {
+        raw = readFileSync(tmpPath);
+      } catch (err) {
+        throw new StorageDownloadError(
+          `Failed to read downloaded file for cid=${cid}: ${String(err)}`,
+          err,
+        );
+      }
 
-    return this.decrypt(Buffer.from(raw));
+      if (!raw || raw.length === 0) {
+        throw new StorageDownloadError(`Downloaded empty payload for cid=${cid}`);
+      }
+
+      return this.decrypt(raw);
+    } finally {
+      try {
+        if (existsSync(tmpPath)) unlinkSync(tmpPath);
+      } catch {}
+    }
   }
 
   private async ensureInit(): Promise<void> {
