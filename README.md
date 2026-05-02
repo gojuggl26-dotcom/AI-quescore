@@ -57,4 +57,5 @@ I, the developer, created this project with the help of AI (Claude and Gemini).
 <br>・Generating all branching patterns, such as TypeScript `if` statements.
 <br>・Basic coding of JSON files.
 <br>・File structure and organisation within the folder.
-<br>・General coding structure of the .js file
+<br>・General coding structure of the .js file.
+<br>・User interface design
