@@ -61,3 +61,8 @@ I, the developer, created this project with the help of AI (Claude and Gemini).
 <br>・User interface design
 <br>・generating the structure of `.ts`files.
 <br>・generating the project Logo and some picture that I submitted.
+
+# comment
+
+I am new to hackathons and to programming in general. I am not very familiar with GitHub or other development tools.
+I created this with the aim of submitting a product within the hackathon timeframe. Therefore, please bear with me if there are any areas that are incomplete or difficult to understand.
