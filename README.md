@@ -66,3 +66,4 @@ I, the developer, created this project with the help of AI (Claude and Gemini).
 
 I am new to hackathons and to programming in general. I am not very familiar with GitHub or other development tools.
 I created this with the aim of submitting a product within the hackathon timeframe. Therefore, please bear with me if there are any areas that are incomplete or difficult to understand.
+When actually building the application, AI proved indispensable as I developed it using the coding skills I had learnt myself.
