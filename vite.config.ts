@@ -1,8 +1,9 @@
 import { defineConfig } from "vite";
-import { vitePlugin as remix } from "@remix-run/dev";
+import { vitePlugin as remix, cloudflareDevProxyVitePlugin } from "@remix-run/dev";
 
 export default defineConfig({
   plugins: [
+    cloudflareDevProxyVitePlugin(),
     remix({
       future: {
         v3_fetcherPersist: true,

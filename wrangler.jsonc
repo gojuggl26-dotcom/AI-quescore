@@ -1,17 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "quescore3",
+  "name": "quescore",
   "main": "./build/server/index.js",
   "compatibility_date": "2026-05-03",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
-    "directory": "public/build",
+    "directory": "./build/client",
     "binding": "ASSETS"
-  },
-  "build": {
-    // Wranglerに「モジュール形式」であることを強制的に認識させるための設定
-    "command": "npm run build"
   }
 }
