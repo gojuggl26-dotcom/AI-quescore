@@ -1,7 +1,9 @@
 {
   "solidity.remappings": [
-    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/"
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "@openzeppelin/=surveychain/node_modules/@openzeppelin/"
   ],
   "solidity.packageDefaultDependenciesContractsDirectory": "",
-  "solidity.packageDefaultDependenciesDirectory": "node_modules"
+  "solidity.packageDefaultDependenciesDirectory": "surveychain/node_modules",
+  "solidity.compileUsingRemoteVersion": "v0.8.24+commit.e11b9ed9"
 }
